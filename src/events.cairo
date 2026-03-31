@@ -1,4 +1,4 @@
-use dope_types::dope_hustlers::{HustlerBody, HustlerSlot};
+// use dope_types::dope_hustlers::{HustlerBody, HustlerSlot};  // commented out for cartel-game-stage1
 use rollyourown::models::game::{GameMode, TokenId};
 use rollyourown::systems::game::{EncounterActions};
 use rollyourown::systems::helpers::traveling::{EncounterOutcomes};
@@ -15,8 +15,8 @@ pub struct GameCreated {
     pub player_name: felt252,
     pub multiplier: u8,
     pub token_id: TokenId,
-    pub hustler_equipment: Span<HustlerSlot>,
-    pub hustler_body: Span<HustlerBody>,
+    // pub hustler_equipment: Span<HustlerSlot>,  // commented out for cartel-game-stage1
+    // pub hustler_body: Span<HustlerBody>,  // commented out for cartel-game-stage1
 }
 
 

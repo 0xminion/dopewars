@@ -27,12 +27,12 @@ trait IGameActions<T> {
 
 #[dojo::contract]
 mod game {
-    use achievement::store::StoreTrait as BushidoStoreTrait;
+    // use achievement::store::StoreTrait as BushidoStoreTrait;  // commented out for cartel-game-stage1
     use cartridge_vrf::{IVrfProviderDispatcher, IVrfProviderDispatcherTrait, Source};
     use dojo::event::EventStorage;
     use dojo::world::{IWorldDispatcherTrait, WorldStorageTrait};
-    use dope_types::dope_hustlers::{HustlerSlots, HustlerStoreImpl, HustlerStoreTrait};
-    use rollyourown::achievements::achievements_v1::Tasks;
+    // use dope_types::dope_hustlers::{HustlerSlots, HustlerStoreImpl, HustlerStoreTrait};  // commented out for cartel-game-stage1
+    // use rollyourown::achievements::achievements_v1::Tasks;  // commented out for cartel-game-stage1
     use rollyourown::config::locations::Locations;
     use rollyourown::constants::ns;
     use rollyourown::events::GameCreated;
@@ -92,8 +92,8 @@ mod game {
                 player_name,
                 multiplier,
                 token_id,
-                hustler_equipment: array![].span(),
-                hustler_body: array![].span(),
+                // hustler_equipment: array![].span(),  // commented out for cartel-game-stage1
+                // hustler_body: array![].span(),  // commented out for cartel-game-stage1
             };
 
             match token_id {
@@ -148,27 +148,15 @@ mod game {
                         'caller is not hustler owner',
                     );
 
-                    let mut hustler_store = HustlerStoreImpl::new(dope_world);
-
-                    game_created
-                        .hustler_equipment = hustler_store
-                        .hustler_slot_full(hustler_id.into());
-
-                    game_created.hustler_body = hustler_store.hustler_body_full(hustler_id.into());
-
-                    let accessory = hustler_store
-                        .hustler_slot(hustler_id.into(), HustlerSlots::Accessory);
-
-                    let bushido_store = BushidoStoreTrait::new(world);
-                    if accessory.gear_item_id.is_some() {
-                        bushido_store
-                            .progress(
-                                player_id.into(),
-                                Tasks::ELEGANT,
-                                1,
-                                starknet::get_block_timestamp(),
-                            );
-                    };
+                    // commented out for cartel-game-stage1: dope_types not available
+                    // let mut hustler_store = HustlerStoreImpl::new(dope_world);
+                    // game_created.hustler_equipment = hustler_store.hustler_slot_full(hustler_id.into());
+                    // game_created.hustler_body = hustler_store.hustler_body_full(hustler_id.into());
+                    // let accessory = hustler_store.hustler_slot(hustler_id.into(), HustlerSlots::Accessory);
+                    // let bushido_store = BushidoStoreTrait::new(world);
+                    // if accessory.gear_item_id.is_some() {
+                    //     bushido_store.progress(player_id.into(), Tasks::ELEGANT, 1, starknet::get_block_timestamp());
+                    // };
                 },
             }
 
