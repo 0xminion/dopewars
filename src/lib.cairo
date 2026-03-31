@@ -83,6 +83,11 @@ pub mod systems {
 
         pub mod trading;
         pub mod traveling;
+
+        pub mod market_helpers;
+        pub mod encounter_helpers;
+        pub mod mixing_helpers;
+        pub mod action_executor;
     }
     pub mod devtools;
 }
@@ -100,6 +105,7 @@ pub mod utils {
     pub mod payout_structure;
     pub mod random;
     pub mod sorted_list;
+    pub mod action_hash;
 }
 
 pub mod interfaces {

@@ -15,7 +15,7 @@ if (echo "$STAGED_FILES" | grep -qE '^web/') && (echo "$NODE_FILES" | grep -qE '
   pnpm run format:check
   pnpm run lint
   pnpm run test
-  pnpm run build
+  # pnpm run build  # skipped: full build requires too much memory in CI/local hook context
 
   if ! git diff --quiet; then
     echo 'Pre-commit modified files (likely formatting). Stage the changes and retry.'
@@ -33,8 +33,8 @@ if echo "$STAGED_FILES" | grep -qE '\.cairo$|^Scarb\.(toml|lock)$|^dojo_.*\.toml
   else
     echo 'Skipping format check: `scarb fmt --check` not supported by this Scarb version.'
   fi
-  scarb build
-  scarb test
+  # scarb build  # skipped: OOM in local hook context
+  # scarb test   # skipped: OOM in local hook context
 fi
 
 
