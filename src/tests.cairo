@@ -9,3 +9,4 @@ pub mod test_encounters;
 pub mod test_mixing;
 pub mod test_heat;
 pub mod test_actions;
+pub mod test_integration;
