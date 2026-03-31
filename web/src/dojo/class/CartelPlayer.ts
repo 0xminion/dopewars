@@ -1,9 +1,8 @@
 export enum PlayerStatus {
-  Normal = 0,
-  Jailed = 1,
-  Hospitalized = 2,
-  Dead = 3,
-  Finished = 4,
+  // Matches Cairo cartel_game.cairo: STATUS_ACTIVE=1, STATUS_DEAD=2, STATUS_FINISHED=3
+  Active = 1,
+  Dead = 2,
+  Finished = 3,
 }
 
 export const LOCATION_NAMES: Record<number, string> = {
@@ -39,7 +38,7 @@ export class CartelPlayer {
   }
 
   get isActive(): boolean {
-    return this.state.status === PlayerStatus.Normal;
+    return this.state.status === PlayerStatus.Active;
   }
 
   get turnsRemaining(): number {

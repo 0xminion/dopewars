@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { CallData, shortString } from "starknet";
+import { CallData, shortString, hash } from "starknet";
 import { getContractByName } from "@dojoengine/core";
 import { useAccount } from "@starknet-react/core";
 import { useDojoContext } from "./useDojoContext";
@@ -15,27 +15,28 @@ export interface ActionInput {
   slotIndex: number;
 }
 
-function serializeActions(actions: ActionInput[]): bigint[] {
-  return actions.map(
-    (a) =>
-      BigInt(a.actionType) |
-      (BigInt(a.targetLocation) << 8n) |
-      (BigInt(a.drugId) << 16n) |
-      (BigInt(a.quantity) << 24n) |
-      (BigInt(a.ingredientId) << 40n) |
-      (BigInt(a.slotIndex) << 48n),
+function packAction(a: ActionInput): bigint {
+  return (
+    BigInt(a.actionType) +
+    BigInt(a.targetLocation) * 0x100n +
+    BigInt(a.drugId) * 0x10000n +
+    BigInt(a.quantity) * 0x1000000n +
+    BigInt(a.ingredientId) * 0x10000000000n +
+    BigInt(a.slotIndex) * 0x1000000000000n
   );
 }
 
+function serializeActions(actions: ActionInput[]): bigint[] {
+  return actions.map(packAction);
+}
+
 function hashActions(actions: ActionInput[], salt: bigint): bigint {
-  // Simple Poseidon-like hash placeholder — actual on-chain hash must match contract
-  const serialized = serializeActions(actions);
-  let h = salt;
-  for (const v of serialized) {
-    h = (h ^ v) * 6364136223846793005n + 1442695040888963407n;
-    h = BigInt.asUintN(64, h);
-  }
-  return h;
+  // Poseidon hash matching Cairo's hash_actions:
+  //   state.update(salt); for each action: state.update(pack(action)); state.finalize()
+  // poseidonHashMany([salt, ...packed]) is equivalent to the above sponge sequence.
+  const inputs = [salt, ...actions.map(packAction)];
+  const hexResult = hash.computePoseidonHashOnElements(inputs.map((v) => `0x${v.toString(16)}`));
+  return BigInt(hexResult);
 }
 
 export function useCartelSystems() {
@@ -101,11 +102,13 @@ export function useCartelSystems() {
   const revealResolve = useCallback(
     async (gameId: number, actions: ActionInput[], salt: bigint) => {
       const serialized = serializeActions(actions);
+      // Cairo signature: reveal_resolve(game_id: u32, actions: Array<Action>, salt: felt252)
+      // Calldata order: game_id, array_length, ...array_elements, salt
       return execute("reveal_resolve", [
         gameId,
-        `0x${salt.toString(16)}`,
         serialized.length,
         ...serialized.map((v) => `0x${v.toString(16)}`),
+        `0x${salt.toString(16)}`,
       ]);
     },
     [execute],
