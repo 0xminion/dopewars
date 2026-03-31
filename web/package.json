@@ -8,7 +8,7 @@
     "turbo": "next dev --turbopack",
     "build": "NODE_OPTIONS=--experimental-wasm-modules next build --webpack",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint ./src --max-warnings=-1",
     "knip": "knip",
     "format": "prettier --write ./src",
     "format:check": "prettier --check ./src",
