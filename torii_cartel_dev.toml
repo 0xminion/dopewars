@@ -1,0 +1,6 @@
+[indexing]
+world_address = ""
+rpc = "http://localhost:5050"
+
+[server]
+http_addr = "0.0.0.0:8080"
