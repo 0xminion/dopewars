@@ -33,6 +33,11 @@ pub mod config {
     pub mod ryo;
     pub mod ryo_address;
     pub mod settings;
+    pub mod drugs_v2;
+    pub mod locations_v2;
+    pub mod game_modes;
+    pub mod heat_config;
+    pub mod ingredients;
 }
 
 pub mod helpers {
@@ -44,6 +49,14 @@ pub mod models {
     pub mod game_store_packed;
 
     pub mod season;
+    pub mod cartel_player;
+    pub mod inventory;
+    pub mod wallet;
+    pub mod reputation;
+    pub mod heat;
+    pub mod cartel_market;
+    pub mod cartel_location;
+    pub mod game_config;
 }
 
 pub mod packing {
