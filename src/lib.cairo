@@ -103,6 +103,9 @@ pub mod systems {
     pub mod cartel_game;
     pub mod market_system;
     pub mod season_v2;
+    pub mod slot_system;
+    pub mod operation_system;
+    pub mod passive_tick;
 }
 
 pub mod tokens {
