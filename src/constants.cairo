@@ -10,3 +10,7 @@ pub fn ns_felt252() -> felt252 {
     'dopewars_v0'
 }
 
+pub fn cartel_ns() -> @ByteArray {
+    @"cartel_v0"
+}
+

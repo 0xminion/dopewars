@@ -1,0 +1,1 @@
+// drug_types stub

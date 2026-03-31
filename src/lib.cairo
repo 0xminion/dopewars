@@ -2,6 +2,15 @@ pub mod constants;
 
 pub mod events;
 
+pub mod types {
+    pub mod drug_types;
+    pub mod action_types;
+    pub mod location_types;
+    pub mod effect_types;
+    pub mod game_types;
+    pub mod heat_types;
+}
+
 pub mod store;
 
 #[cfg(test)]

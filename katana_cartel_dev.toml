@@ -1,0 +1,8 @@
+[server]
+port = 5050
+
+[starknet]
+seed = "cartel"
+
+[dev]
+no_fee = true
