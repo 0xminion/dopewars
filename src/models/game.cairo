@@ -1,8 +1,8 @@
 use dojo::world::{WorldStorage};
 
-use dope_types::dope_hustlers::{HustlerSlots};
-use dope_types::dope_hustlers::{HustlerStoreImpl, HustlerStoreTrait};
-use dope_types::dope_loot::{LootStoreImpl, LootStoreTrait};
+// use dope_types::dope_hustlers::{HustlerSlots};  // commented out for cartel-game-stage1
+// use dope_types::dope_hustlers::{HustlerStoreImpl, HustlerStoreTrait};  // commented out for cartel-game-stage1
+// use dope_types::dope_loot::{LootStoreImpl, LootStoreTrait};  // commented out for cartel-game-stage1
 
 use rollyourown::store::StoreImpl;
 use rollyourown::{utils::{bytes16::{Bytes16, Bytes16Impl}}};
@@ -66,53 +66,9 @@ pub impl GameImpl of GameTrait {
         multiplier: u8,
         token_id: TokenId,
     ) -> Game {
-        let equipment_by_slot = match token_id {
-            TokenId::GuestLootId(loot_id) |
-            TokenId::LootId(loot_id) => {
-                let mut loot_store = LootStoreImpl::new(dope_world);
-
-                let loot_id: u256 = loot_id.into();
-                let mut equipment = array![
-                    loot_store.gear_item_id(loot_id, HustlerSlots::Weapon).try_into().unwrap(),
-                    loot_store.gear_item_id(loot_id, HustlerSlots::Clothe).try_into().unwrap(),
-                    loot_store.gear_item_id(loot_id, HustlerSlots::Foot).try_into().unwrap(),
-                    loot_store.gear_item_id(loot_id, HustlerSlots::Vehicle).try_into().unwrap(),
-                ];
-
-                equipment.span()
-            },
-            TokenId::HustlerId(hustler_id) => {
-                let mut hustler_store = HustlerStoreImpl::new(dope_world);
-
-                let weapon = hustler_store.hustler_slot(hustler_id.into(), HustlerSlots::Weapon);
-                let clothe = hustler_store.hustler_slot(hustler_id.into(), HustlerSlots::Clothe);
-                let foot = hustler_store.hustler_slot(hustler_id.into(), HustlerSlots::Foot);
-                let vehicle = hustler_store.hustler_slot(hustler_id.into(), HustlerSlots::Vehicle);
-
-                let weapon_id: felt252 = weapon
-                    .gear_item_id
-                    .expect('must equip a weapon')
-                    .try_into()
-                    .unwrap();
-                let clothe_id: felt252 = clothe
-                    .gear_item_id
-                    .expect('must equip a clothe')
-                    .try_into()
-                    .unwrap();
-                let foot_id: felt252 = foot
-                    .gear_item_id
-                    .expect('must equip a foot')
-                    .try_into()
-                    .unwrap();
-                let vehicle_id: felt252 = vehicle
-                    .gear_item_id
-                    .expect('must equip a weapon')
-                    .try_into()
-                    .unwrap();
-
-                array![weapon_id, clothe_id, foot_id, vehicle_id].span()
-            },
-        };
+        // commented out for cartel-game-stage1: dope_types not available
+        // equipment_by_slot was populated from dope_types loot/hustler stores
+        let equipment_by_slot: Span<GearId> = array![].span();
         Game {
             game_id,
             player_id,
