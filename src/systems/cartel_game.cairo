@@ -440,12 +440,14 @@ pub mod cartel_game {
                     PassiveTickImpl::execute_manage(
                         ref world, game_id, player_id, action.slot_index, action.drug_id,
                     );
+                    rep.operator_xp += 3;
                 },
                 ActionType::Invest => {
                     PassiveTickImpl::execute_invest(
                         ref world, game_id, player_id, ref wallet, action.slot_index,
                         action.quantity,
                     );
+                    rep.operator_xp += 3;
                 },
             };
 
