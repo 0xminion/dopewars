@@ -409,6 +409,7 @@ pub mod cartel_game {
                         ref player,
                         ref inventory,
                         ref wallet,
+                        ref rep,
                         action.drug_id,
                         action.quantity,
                         action.slot_index,
@@ -537,12 +538,19 @@ pub mod cartel_game {
             ref player: CartelPlayer,
             ref inventory: Inventory,
             ref wallet: WalletState,
+            ref rep: Reputation,
             drug_id: u8,
             quantity: u16,
             slot_index: u8,
         ) {
             // Cap quantity to prevent overflow in price multiplication
             assert(quantity <= MAX_QUANTITY_PER_ACTION, 'quantity too large');
+
+            // Enforce drug tier access
+            assert(
+                crate::systems::helpers::reputation_helpers::can_access_drug(rep.trader_lvl, drug_id),
+                'drug tier locked',
+            );
 
             let location = player.location;
             let mut market: CartelMarket = world.read_model((game_id, location));
@@ -790,6 +798,8 @@ pub mod cartel_game {
             op_id: u8,
             amount_u16: u16,
         ) {
+            assert(amount_u16 > 0, 'amount must be positive');
+
             let mut operation: crate::models::operation::Operation = world
                 .read_model((game_id, op_id));
             assert(operation.owner == player_id, 'not op owner');
@@ -817,7 +827,7 @@ pub mod cartel_game {
             salt: felt252,
         ) {
             // 1. Process active dealer slots (sales + bust check)
-            let slot_counter: crate::models::agent_slot::SlotCounter = world.read_model(game_id);
+            let slot_counter: crate::models::agent_slot::SlotCounter = world.read_model((game_id, player_id));
             let mut rng = salt;
             let mut i: u8 = 0;
             while i < slot_counter.next_slot_id {
@@ -842,7 +852,12 @@ pub mod cartel_game {
                             crate::systems::helpers::slot_helpers::apply_commission(revenue, 20);
 
                         slot.drug_quantity = slot.drug_quantity - qty_sold;
-                        slot.earnings_held = slot.earnings_held + owner_cut;
+                        let max_u32: u32 = 0xFFFFFFFF;
+                        if slot.earnings_held > max_u32 - owner_cut {
+                            slot.earnings_held = max_u32;
+                        } else {
+                            slot.earnings_held = slot.earnings_held + owner_cut;
+                        }
 
                         // Bust risk check
                         rng = PoseidonTrait::new().update(rng).update(i.into()).finalize();
@@ -872,7 +887,7 @@ pub mod cartel_game {
 
             // 2. Process operations (laundering tick)
             let op_counter: crate::models::operation::OperationCounter = world
-                .read_model(game_id);
+                .read_model((game_id, player_id));
             i = 0;
             while i < op_counter.next_op_id {
                 let mut op: crate::models::operation::Operation = world

@@ -1,3 +1,11 @@
+#[dojo::model]
+#[derive(Copy, Drop, Serde)]
+pub struct LastTickTurn {
+    #[key]
+    pub game_id: u32,
+    pub turn: u16,
+}
+
 #[starknet::interface]
 pub trait IPassiveTick<T> {
     fn process_tick(ref self: T, game_id: u32, tick_seed: felt252);
@@ -9,6 +17,7 @@ pub mod passive_tick {
     use core::poseidon::PoseidonTrait;
     use core::hash::HashStateTrait;
 
+    use starknet::get_caller_address;
     use crate::models::agent_slot::{AgentSlot, SlotCounter};
     use crate::models::operation::{Operation, OperationCounter};
     use crate::models::wallet::WalletState;
@@ -21,6 +30,8 @@ pub mod passive_tick {
     use crate::systems::helpers::market_drift::{apply_price_drift, replenish_supply, apply_market_event};
     use crate::types::location_types::LOCATION_COUNT;
 
+    use super::LastTickTurn;
+
     fn ns() -> @ByteArray {
         @"cartel_v0"
     }
@@ -31,8 +42,16 @@ pub mod passive_tick {
         fn process_tick(ref self: ContractState, game_id: u32, tick_seed: felt252) {
             let mut world = self.world(ns());
 
+            // Auth guard: prevent replay within the same turn
+            let caller = get_caller_address();
+            let player: CartelPlayer = world.read_model((game_id, caller));
+            let mut last_tick: LastTickTurn = world.read_model(game_id);
+            assert(last_tick.turn < player.turn, 'tick already processed');
+            last_tick.turn = player.turn;
+            world.write_model(@last_tick);
+
             // 1. Process dealer slots
-            let slot_counter: SlotCounter = world.read_model(game_id);
+            let slot_counter: SlotCounter = world.read_model((game_id, caller));
             let mut rng = tick_seed;
             let mut i: u8 = 0;
             while i < slot_counter.next_slot_id {
@@ -49,7 +68,12 @@ pub mod passive_tick {
                     let (owner_cut, _dealer_cut) = apply_commission(revenue, 20);
 
                     slot.drug_quantity = slot.drug_quantity - qty_sold;
-                    slot.earnings_held = slot.earnings_held + owner_cut;
+                    let max_u32: u32 = 0xFFFFFFFF;
+                    if slot.earnings_held > max_u32 - owner_cut {
+                        slot.earnings_held = max_u32;
+                    } else {
+                        slot.earnings_held = slot.earnings_held + owner_cut;
+                    }
 
                     // Check bust risk
                     rng = PoseidonTrait::new().update(rng).update(i.into()).finalize();
@@ -77,7 +101,7 @@ pub mod passive_tick {
             };
 
             // 2. Process operations (laundering)
-            let op_counter: OperationCounter = world.read_model(game_id);
+            let op_counter: OperationCounter = world.read_model((game_id, caller));
             i = 0;
             while i < op_counter.next_op_id {
                 let mut op: Operation = world.read_model((game_id, i));

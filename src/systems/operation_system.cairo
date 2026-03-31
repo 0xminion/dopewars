@@ -33,7 +33,7 @@ pub mod operation_system {
             // Check operator level unlock
             let reputation: Reputation = world.read_model((game_id, caller));
             let max_ops = get_max_operations(reputation.operator_lvl);
-            let mut counter: OperationCounter = world.read_model(game_id);
+            let mut counter: OperationCounter = world.read_model((game_id, caller));
             assert(counter.active_count < max_ops, 'op limit reached');
             assert(reputation.operator_lvl >= config.unlock_operator_lvl, 'operator level too low');
 
@@ -73,6 +73,8 @@ pub mod operation_system {
         fn start_laundering(ref self: ContractState, game_id: u32, op_id: u8, amount: u32) {
             let mut world = self.world(ns());
             let caller = get_caller_address();
+
+            assert(amount > 0, 'amount must be positive');
 
             let mut operation: Operation = world.read_model((game_id, op_id));
             assert(operation.owner == caller, 'not op owner');

@@ -18,8 +18,9 @@ pub mod slot_system {
     use crate::models::agent_slot::{AgentSlot, SlotCounter};
     use crate::models::wallet::WalletState;
     use crate::models::reputation::Reputation;
+    use crate::models::inventory::{Inventory, pack_drug_slot, unpack_drug_slot};
     use crate::config::slot_config::get_slot_type_config;
-    use crate::systems::helpers::reputation_helpers::get_max_slots;
+    use crate::systems::helpers::reputation_helpers::{get_max_slots, can_access_drug};
 
     fn ns() -> @ByteArray {
         @"cartel_v0"
@@ -33,10 +34,13 @@ pub mod slot_system {
             let caller = get_caller_address();
 
             // Check slot limit
-            let mut counter: SlotCounter = world.read_model(game_id);
+            let mut counter: SlotCounter = world.read_model((game_id, caller));
             let reputation: Reputation = world.read_model((game_id, caller));
-            let max_slots = get_max_slots(reputation.operator_lvl);
-            assert(counter.active_count < max_slots, 'slot limit reached');
+            let config: crate::models::game_config::GameConfig = world.read_model(game_id);
+            let rep_max = get_max_slots(reputation.operator_lvl);
+            let game_max = config.max_dealer_slots;
+            let effective_max = if rep_max < game_max { rep_max } else { game_max };
+            assert(counter.active_count < effective_max, 'slot limit reached');
 
             // Check cost
             let config = get_slot_type_config(slot_type);
@@ -109,9 +113,43 @@ pub mod slot_system {
             assert(slot.owner == caller, 'not slot owner');
             assert(slot.status == 1, 'slot not active');
 
-            // Transfer from player inventory to slot
-            // For simplicity, we just set the slot's product directly
-            // (in full implementation, deduct from player inventory)
+            // Validate drug_id
+            assert(drug_id >= 1 && drug_id <= 8, 'invalid drug id');
+
+            // Check drug tier access via reputation
+            let reputation: Reputation = world.read_model((game_id, caller));
+            assert(can_access_drug(reputation.trader_lvl, drug_id), 'drug tier locked');
+
+            // Deduct from player inventory
+            let mut inv: Inventory = world.read_model((game_id, caller));
+            let mut found = false;
+            let mut i: u8 = 0;
+            while i < 4 {
+                let packed = if i == 0 { inv.slot_0 }
+                    else if i == 1 { inv.slot_1 }
+                    else if i == 2 { inv.slot_2 }
+                    else { inv.slot_3 };
+                let (slot_drug, slot_qty, slot_quality, slot_effects) = unpack_drug_slot(packed);
+                if slot_drug == drug_id && slot_qty >= quantity {
+                    let remaining = slot_qty - quantity;
+                    let new_packed = if remaining == 0 {
+                        0_u64
+                    } else {
+                        pack_drug_slot(slot_drug, remaining, slot_quality, slot_effects)
+                    };
+                    if i == 0 { inv.slot_0 = new_packed; }
+                    else if i == 1 { inv.slot_1 = new_packed; }
+                    else if i == 2 { inv.slot_2 = new_packed; }
+                    else { inv.slot_3 = new_packed; };
+                    found = true;
+                    break;
+                }
+                i += 1;
+            };
+            assert(found, 'insufficient inventory');
+            world.write_model(@inv);
+
+            // Transfer to dealer slot
             slot.drug_id = drug_id;
             slot.drug_quantity = slot.drug_quantity + quantity;
             slot.drug_effects = effects;
@@ -146,12 +184,13 @@ pub mod slot_system {
             let caller = get_caller_address();
             let mut slot: AgentSlot = world.read_model((game_id, slot_id));
             assert(slot.owner == caller, 'not slot owner');
+            assert(slot.status == 1, 'slot not active');
 
             slot.status = 0; // Inactive
             slot.drug_quantity = 0;
             world.write_model(@slot);
 
-            let mut counter: SlotCounter = world.read_model(game_id);
+            let mut counter: SlotCounter = world.read_model((game_id, caller));
             if counter.active_count > 0 {
                 counter.active_count = counter.active_count - 1;
             }

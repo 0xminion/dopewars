@@ -52,12 +52,14 @@ pub struct AgentSlot {
     pub busted_until_turn: u16,  // turn when bust ends
 }
 
-// Slot counter per game
+// Slot counter per player per game
 #[dojo::model]
 #[derive(Copy, Drop, Serde)]
 pub struct SlotCounter {
     #[key]
     pub game_id: u32,
+    #[key]
+    pub player_id: ContractAddress,
     pub next_slot_id: u8,
     pub active_count: u8,
 }

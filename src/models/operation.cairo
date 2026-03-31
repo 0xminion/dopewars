@@ -21,6 +21,8 @@ pub struct Operation {
 pub struct OperationCounter {
     #[key]
     pub game_id: u32,
+    #[key]
+    pub player_id: ContractAddress,
     pub next_op_id: u8,
     pub active_count: u8,
 }
