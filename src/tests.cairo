@@ -14,3 +14,4 @@ pub mod test_reputation;
 pub mod test_agent_slot;
 pub mod test_operations;
 pub mod test_market_drift;
+pub mod test_stage2_integration;
