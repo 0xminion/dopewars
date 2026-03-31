@@ -35,6 +35,9 @@ achievement = { git = "https://github.com/cartridge-gg/arcade", branch="dojo_1.7
 
 # dope_types = { path = "../dope-migration/cairo/types"}  # commented out for cartel-game-stage1
 
+[dev-dependencies]
+cairo_test = "2.12.2"
+
 [scripts]
 katana = "katana --config ./katana_dev.toml"
 katana_with_db = "katana --config ./katana_dev.toml --db-dir db"
