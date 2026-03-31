@@ -38,6 +38,9 @@ pub mod config {
     pub mod game_modes;
     pub mod heat_config;
     pub mod ingredients;
+    pub mod slot_config;
+    pub mod operation_config;
+    pub mod reputation_config;
 }
 
 pub mod helpers {
@@ -57,6 +60,9 @@ pub mod models {
     pub mod cartel_market;
     pub mod cartel_location;
     pub mod game_config;
+    pub mod agent_slot;
+    pub mod cartel;
+    pub mod operation;
 }
 
 pub mod packing {
@@ -88,6 +94,10 @@ pub mod systems {
         pub mod encounter_helpers;
         pub mod mixing_helpers;
         pub mod action_executor;
+        pub mod reputation_helpers;
+        pub mod slot_helpers;
+        pub mod operation_helpers;
+        pub mod market_drift;
     }
     pub mod devtools;
     pub mod cartel_game;

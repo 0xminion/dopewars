@@ -10,3 +10,7 @@ pub mod test_mixing;
 pub mod test_heat;
 pub mod test_actions;
 pub mod test_integration;
+pub mod test_reputation;
+pub mod test_agent_slot;
+pub mod test_operations;
+pub mod test_market_drift;
