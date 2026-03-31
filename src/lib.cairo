@@ -90,6 +90,9 @@ pub mod systems {
         pub mod action_executor;
     }
     pub mod devtools;
+    pub mod cartel_game;
+    pub mod market_system;
+    pub mod season_v2;
 }
 
 pub mod tokens {
