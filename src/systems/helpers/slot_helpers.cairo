@@ -1,4 +1,3 @@
-use crate::config::slot_config::{get_slot_type_config, BUST_DURATION_TURNS};
 use crate::config::drugs_v2::get_drug_config;
 
 // Calculate how much a dealer sells per tick

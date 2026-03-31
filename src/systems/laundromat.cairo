@@ -15,7 +15,7 @@ mod laundromat {
     use achievement::store::StoreTrait as BushidoStoreTrait;
     use cartridge_vrf::{IVrfProviderDispatcher, IVrfProviderDispatcherTrait, Source};
     use dojo::event::EventStorage;
-    use dojo::world::WorldStorageTrait;
+    // use dojo::world::WorldStorageTrait;  // commented out - unused import causes build failure with additional contracts
     // use dope_types::dope_gear::{GearItem, IDopeGearABIDispatcher, IDopeGearABIDispatcherTrait};  // commented out for cartel-game-stage1
     // use dope_types::dope_hustlers::{IDopeHustlersABIDispatcher, IDopeHustlersABIDispatcherTrait};  // commented out for cartel-game-stage1
     // use dope_types::helpers::is_og;  // commented out for cartel-game-stage1
@@ -24,10 +24,10 @@ mod laundromat {
     use rollyourown::events::{Claimed, NewSeason};
     use rollyourown::helpers::season_manager::{SeasonManagerImpl, SeasonManagerTrait};
     use rollyourown::interfaces::paper::{IPaperDispatcher, IPaperDispatcherTrait};
-    use rollyourown::libraries::dopewars_items::{
-        IDopewarsItemsDispatcherTrait, IDopewarsItemsLibraryDispatcher,
-    };
-    use rollyourown::models::game::{Game, GameImpl, GameTrait, TokenId};
+    // use rollyourown::libraries::dopewars_items::{
+    //     IDopewarsItemsDispatcherTrait, IDopewarsItemsLibraryDispatcher,
+    // };
+    use rollyourown::models::game::{Game, GameImpl, GameTrait};
     use rollyourown::models::season::{SeasonImpl, SeasonTrait};
     use rollyourown::packing::game_store::GameStoreImpl;
     use rollyourown::store::{StoreImpl, StoreTrait};

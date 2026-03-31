@@ -310,6 +310,11 @@ pub mod cartel_game {
             // Update heat tier
             heat.tier = notoriety_to_tier(heat.notoriety);
 
+            // === Passive tick processing (inline) ===
+            PassiveTickImpl::run_passive_tick(
+                ref world, game_id, player_id, ref wallet, player.turn, salt,
+            );
+
             // Check if game over
             if player.turn > player.max_turns {
                 player.status = STATUS_FINISHED;
@@ -431,8 +436,17 @@ pub mod cartel_game {
                 ActionType::Rest => {
                     Self::execute_rest(ref heat);
                 },
-                ActionType::Manage => {},
-                ActionType::Invest => {},
+                ActionType::Manage => {
+                    PassiveTickImpl::execute_manage(
+                        ref world, game_id, player_id, action.slot_index, action.drug_id,
+                    );
+                },
+                ActionType::Invest => {
+                    PassiveTickImpl::execute_invest(
+                        ref world, game_id, player_id, ref wallet, action.slot_index,
+                        action.quantity,
+                    );
+                },
             };
 
             ap_used += cost;
@@ -721,6 +735,211 @@ pub mod cartel_game {
                     }
                 }
                 i += 1;
+            };
+        }
+
+        // Manage action: set dealer strategy (slot_index = slot_id, drug_id = strategy)
+        fn execute_manage(
+            ref world: dojo::world::WorldStorage,
+            _game_id: u32,
+            _player_id: ContractAddress,
+            _slot_index: u8,
+            _strategy: u8,
+        ) {
+            // TODO: full implementation once Dojo model cross-import issue resolved
+        }
+
+        // Invest action: start laundering on an operation
+        fn execute_invest(
+            ref world: dojo::world::WorldStorage,
+            _game_id: u32,
+            _player_id: ContractAddress,
+            ref _wallet: WalletState,
+            _op_id: u8,
+            _amount_u16: u16,
+        ) {
+            // TODO: full implementation once Dojo model cross-import issue resolved
+        }
+
+    }
+
+    #[generate_trait]
+    impl PassiveTickImpl of PassiveTickTrait {
+        fn execute_manage(
+            ref world: dojo::world::WorldStorage,
+            game_id: u32,
+            player_id: ContractAddress,
+            slot_index: u8,
+            strategy: u8,
+        ) {
+            let mut slot: crate::models::agent_slot::AgentSlot = world
+                .read_model((game_id, slot_index));
+            assert(slot.owner == player_id, 'not slot owner');
+            assert(strategy <= 2, 'invalid strategy');
+            slot.strategy = strategy;
+            world.write_model(@slot);
+        }
+
+        fn execute_invest(
+            ref world: dojo::world::WorldStorage,
+            game_id: u32,
+            player_id: ContractAddress,
+            ref wallet: WalletState,
+            op_id: u8,
+            amount_u16: u16,
+        ) {
+            let mut operation: crate::models::operation::Operation = world
+                .read_model((game_id, op_id));
+            assert(operation.owner == player_id, 'not op owner');
+            assert(operation.processing_amount == 0, 'already processing');
+
+            let amount: u32 = amount_u16.into() * 10;
+            let capacity: u32 = operation.capacity_per_turn.into();
+            let queue_amount = if amount > capacity { capacity } else { amount };
+            assert(wallet.dirty_cash >= queue_amount, 'not enough dirty cash');
+
+            wallet.dirty_cash = wallet.dirty_cash - queue_amount;
+
+            let config = crate::config::operation_config::get_op_config(operation.op_type);
+            operation.processing_amount = queue_amount;
+            operation.processing_turns_left = config.processing_turns;
+            world.write_model(@operation);
+        }
+
+        fn run_passive_tick(
+            ref world: dojo::world::WorldStorage,
+            game_id: u32,
+            player_id: ContractAddress,
+            ref wallet: WalletState,
+            current_turn: u16,
+            salt: felt252,
+        ) {
+            // 1. Process active dealer slots (sales + bust check)
+            let slot_counter: crate::models::agent_slot::SlotCounter = world.read_model(game_id);
+            let mut rng = salt;
+            let mut i: u8 = 0;
+            while i < slot_counter.next_slot_id {
+                let mut slot: crate::models::agent_slot::AgentSlot = world
+                    .read_model((game_id, i));
+                if slot.owner == player_id {
+                    if slot.status == 1 && slot.drug_quantity > 0 && slot.slot_type == 1 {
+                        let market: CartelMarket = world.read_model((game_id, slot.location));
+                        let price_tick = get_drug_price_tick(
+                            market.drug_prices, slot.drug_id - 1,
+                        );
+
+                        let (qty_sold, revenue) =
+                            crate::systems::helpers::slot_helpers::calculate_dealer_sales(
+                            slot.drug_id,
+                            slot.drug_quantity,
+                            slot.salesmanship,
+                            slot.strategy,
+                            price_tick,
+                        );
+                        let (owner_cut, _dealer_cut) =
+                            crate::systems::helpers::slot_helpers::apply_commission(revenue, 20);
+
+                        slot.drug_quantity = slot.drug_quantity - qty_sold;
+                        slot.earnings_held = slot.earnings_held + owner_cut;
+
+                        // Bust risk check
+                        rng = PoseidonTrait::new().update(rng).update(i.into()).finalize();
+                        let roll: u8 = (Into::<felt252, u256>::into(rng) % 100)
+                            .try_into()
+                            .unwrap();
+                        let heat: HeatProfile = world.read_model((game_id, player_id));
+                        let loc_heat = get_location_heat(heat.location_heat, slot.location - 1);
+
+                        if crate::systems::helpers::slot_helpers::calculate_bust_risk(
+                            loc_heat, slot.stealth, slot.strategy, roll,
+                        ) {
+                            slot.status = 2; // Busted
+                            slot.drug_quantity = 0;
+                            slot.busted_until_turn = current_turn
+                                + crate::config::slot_config::BUST_DURATION_TURNS;
+                        }
+
+                        world.write_model(@slot);
+                    } else if slot.status == 2 && current_turn >= slot.busted_until_turn {
+                        slot.status = 1; // Reactivate
+                        world.write_model(@slot);
+                    }
+                }
+                i += 1;
+            };
+
+            // 2. Process operations (laundering tick)
+            let op_counter: crate::models::operation::OperationCounter = world
+                .read_model(game_id);
+            i = 0;
+            while i < op_counter.next_op_id {
+                let mut op: crate::models::operation::Operation = world
+                    .read_model((game_id, i));
+                if op.owner == player_id && op.processing_amount > 0 {
+                    let (clean_produced, remaining, new_turns) =
+                        crate::systems::helpers::operation_helpers::process_operation_tick(
+                        op.op_type, op.processing_amount, op.processing_turns_left,
+                    );
+                    op.processing_amount = remaining;
+                    op.processing_turns_left = new_turns;
+                    op.total_laundered = op.total_laundered + clean_produced;
+                    world.write_model(@op);
+
+                    if clean_produced > 0 {
+                        let max_cash: u32 = 0xFFFFFFFF;
+                        if wallet.clean_cash > max_cash - clean_produced {
+                            wallet.clean_cash = max_cash;
+                        } else {
+                            wallet.clean_cash = wallet.clean_cash + clean_produced;
+                        }
+                    }
+                }
+                i += 1;
+            };
+
+            // 3. Apply market drift to all locations
+            let mut loc: u8 = 1;
+            while loc <= LOCATION_COUNT {
+                let mut market: CartelMarket = world.read_model((game_id, loc));
+                rng = PoseidonTrait::new()
+                    .update(rng)
+                    .update(loc.into())
+                    .update('market')
+                    .finalize();
+                market.drug_prices = crate::systems::helpers::market_drift::apply_price_drift(
+                    market.drug_prices, rng,
+                );
+                market.drug_supply = crate::systems::helpers::market_drift::replenish_supply(
+                    market.drug_supply,
+                );
+
+                // Random market event (10% chance per location)
+                rng = PoseidonTrait::new().update(rng).update('event').finalize();
+                let event_roll: u8 = (Into::<felt252, u256>::into(rng) % 100)
+                    .try_into()
+                    .unwrap();
+                if event_roll < 10 {
+                    let event_type: u8 = (Into::<felt252, u256>::into(rng) % 4)
+                        .try_into()
+                        .unwrap();
+                    let target_drug: u8 = (Into::<felt252, u256>::into(
+                        PoseidonTrait::new().update(rng).update('drug').finalize(),
+                    ) % 8)
+                        .try_into()
+                        .unwrap();
+                    let (new_prices, new_supply) =
+                        crate::systems::helpers::market_drift::apply_market_event(
+                        market.drug_prices, market.drug_supply, event_type + 1, target_drug,
+                    );
+                    market.drug_prices = new_prices;
+                    market.drug_supply = new_supply;
+                    market.last_event = event_type + 1;
+                } else {
+                    market.last_event = 0;
+                }
+
+                world.write_model(@market);
+                loc += 1;
             };
         }
     }
