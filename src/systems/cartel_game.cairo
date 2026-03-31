@@ -47,7 +47,7 @@ pub mod cartel_game {
     use crate::models::cartel_location::CartelLocation;
     use crate::config::game_modes::get_mode_config;
     use crate::config::drugs_v2::get_drug_config;
-    use crate::config::locations_v2::get_location_config;
+    use crate::config::locations_v2::{get_location_config, is_adjacent};
     use crate::config::heat_config::{notoriety_to_tier, TRAVEL_WITH_DRUGS_NOTORIETY};
     use crate::config::ingredients::get_ingredient_config;
     use crate::types::action_types::{Action, ActionType, action_ap_cost};
@@ -75,6 +75,9 @@ pub mod cartel_game {
     const STATUS_ACTIVE: u8 = 1;
     const STATUS_DEAD: u8 = 2;
     const STATUS_FINISHED: u8 = 3;
+
+    // Safety cap on quantity per action to prevent u32 overflow in wallet arithmetic
+    const MAX_QUANTITY_PER_ACTION: u16 = 999;
 
     #[abi(embed_v0)]
     impl CartelGameImpl of super::ICartelGame<ContractState> {
@@ -211,6 +214,13 @@ pub mod cartel_game {
 
             // Verify ap_spent <= ap_remaining
             assert(ap_spent <= player.ap_remaining, 'not enough AP');
+
+            // Guard against overwriting an existing commit for this turn (must reveal first)
+            let existing_commit: ActionCommit = world.read_model((game_id, player_id));
+            assert(
+                existing_commit.action_hash == 0 || existing_commit.turn != player.turn,
+                'must reveal before re-commit',
+            );
 
             // Store ActionCommit
             let commit = ActionCommit {
@@ -356,7 +366,18 @@ pub mod cartel_game {
             action_idx: u8,
             ref ap_used: u8,
         ) {
-            let is_distant = false; // simplified: use action_ap_cost default
+            // Determine is_distant for Travel; default false for all other action types
+            let destination = action.target_location;
+            let is_distant = match action.action_type {
+                ActionType::Travel => {
+                    // Validate destination range
+                    assert(destination >= 1 && destination <= LOCATION_COUNT, 'invalid destination');
+                    // Cannot travel to current location
+                    assert(destination != player.location, 'already at destination');
+                    !is_adjacent(player.location, destination)
+                },
+                _ => false,
+            };
             let cost = action_ap_cost(action.action_type, is_distant);
 
             match action.action_type {
@@ -371,7 +392,7 @@ pub mod cartel_game {
                         ref wallet,
                         ref heat,
                         ref rep,
-                        action.target_location,
+                        destination,
                         salt,
                         action_idx,
                     );
@@ -504,6 +525,9 @@ pub mod cartel_game {
             quantity: u16,
             slot_index: u8,
         ) {
+            // Cap quantity to prevent overflow in price multiplication
+            assert(quantity <= MAX_QUANTITY_PER_ACTION, 'quantity too large');
+
             let location = player.location;
             let mut market: CartelMarket = world.read_model((game_id, location));
 
@@ -555,6 +579,9 @@ pub mod cartel_game {
             slot_index: u8,
             quantity: u16,
         ) {
+            // Cap quantity to prevent overflow in earnings multiplication
+            assert(quantity <= MAX_QUANTITY_PER_ACTION, 'quantity too large');
+
             let location = player.location;
             let mut market: CartelMarket = world.read_model((game_id, location));
 
@@ -568,8 +595,12 @@ pub mod cartel_game {
             let sell_price = calculate_sell_price(drug_id, tick, effects);
             let earnings: u32 = sell_price * quantity.into();
 
-            // Add earnings as dirty cash
-            wallet.dirty_cash += earnings;
+            // Safe addition — saturate at u32::MAX to prevent overflow
+            if wallet.dirty_cash > 0xFFFFFFFF_u32 - earnings {
+                wallet.dirty_cash = 0xFFFFFFFF_u32;
+            } else {
+                wallet.dirty_cash += earnings;
+            }
 
             // Update inventory
             let remaining = existing_qty - quantity;
