@@ -15,3 +15,17 @@ world_address = ""
 
 [migration]
 skip_contracts = []
+
+[writers]
+"cartel_v0-CartelPlayer" = ["cartel_v0-cartel_game"]
+"cartel_v0-Inventory" = ["cartel_v0-cartel_game"]
+"cartel_v0-WalletState" = ["cartel_v0-cartel_game"]
+"cartel_v0-Reputation" = ["cartel_v0-cartel_game"]
+"cartel_v0-HeatProfile" = ["cartel_v0-cartel_game"]
+"cartel_v0-CartelMarket" = ["cartel_v0-cartel_game"]
+"cartel_v0-CartelLocation" = ["cartel_v0-cartel_game"]
+"cartel_v0-GameConfig" = ["cartel_v0-cartel_game"]
+"cartel_v0-GameCounter" = ["cartel_v0-cartel_game"]
+"cartel_v0-ActionCommit" = ["cartel_v0-cartel_game"]
+"cartel_v0-LeaderboardEntry" = ["cartel_v0-season_v2"]
+"cartel_v0-LeaderboardSize" = ["cartel_v0-season_v2"]
